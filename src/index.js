@@ -1,7 +1,9 @@
+#!/usr/bin/env node
+
 const inquirer = require('inquirer');
 const fs = require('fs');
 const program = require('commander');
-const { execSync, spawn } = require("child_process");
+const { execSync } = require("child_process");
 
 const CONFIG_FILE = '.mono';
 
@@ -77,6 +79,6 @@ program
   }
   else{
     //exec
-    spawn(`yarn workspace ${workspace} ${program.args.join(' ')}`, { stdio: 'inherit' });
+    execSync(`yarn workspace ${workspace} ${program.args.join(' ')} &2>1`, { stdio: 'inherit'});
   }
 })();

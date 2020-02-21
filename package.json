@@ -3,7 +3,7 @@
   "version": "1.0.1",
   "description": "Tools for working with yarn monorepositories",
   "bin": {
-    "ws": "src/index.js"
+    "yarn-ws": "src/index.js"
   },
   "repository": "https://github.com/anitin/mono.git",
   "author": "ankit.nitin@gmail.com",
