@@ -1,6 +1,6 @@
 {
   "name": "yarn-ws",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Tools for working with yarn monorepositories",
   "bin": {
     "yarn-ws": "src/index.js"
