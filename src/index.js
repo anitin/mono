@@ -30,6 +30,7 @@ process.on('SIGTERM', cleanExit); // catch kill
 
 program
   .option('use', 'Set Workspace')
+  .option('tree', 'Show Workspace Dependency Tree')
   .parse(process.argv);
 
 (async function Main() {
@@ -43,6 +44,9 @@ program
 
   if (program.use) {
     workspace = await selectWorkspace();
+  } else if (program.tree) {
+    console.log('Workspace Dependency Tree:')
+    yarnInfo.showInfo();
   }
   else if(program.args && program.args.length >0 ){
     const cmd = program.args[0];
