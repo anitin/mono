@@ -28,15 +28,9 @@ const getYarnWorkspaces = () => {
   }
 
   try {
-    const result = execSync(`yarn workspaces info --json`).toString().trim();
-    const output = result.split('\n');
-    for(let i=0; i<output.length; i++) {
-      const obj = getObject(output[i]);
-      if(obj!== null) {
-        inMemCachedWorkspaces = obj;//cache locally 
-        return Object.keys(inMemCachedWorkspaces); 
-      }
-    }
+    const output = execSync(`yarn workspaces info --json`).toString().trim();
+    inMemCachedWorkspaces = JSON.parse(output.substring(output.indexOf("\n")+1, output.lastIndexOf("\n")));
+    return Object.keys(inMemCachedWorkspaces);
   } catch(e){
     console.error(`Cannot find yarn workspaces`, e);
   }
@@ -47,12 +41,12 @@ const getYarnWorkspaceCommands = workspace => {
   const workspaces = getYarnWorkspaces();
   if(Array.isArray(workspaces) && workspaces.indexOf(workspace) > -1) {
     try {
-      const result = execSync(`yarn workspace ${workspace} run --json`).toString().trim();
+      const result = execSync(`yarn workspace ${workspace} run --json &2>null`).toString().trim();
       const output = result.split('\n');
       for(let i=0; i<output.length; i++) {
         const obj = getObject(output[i]);
         if(obj!== null && obj.type === 'list' && obj.data && obj.data.type === 'possibleCommands') {
-          return obj.items;
+          return obj.data.items;
         }
       }
     } catch(e){}
@@ -60,7 +54,7 @@ const getYarnWorkspaceCommands = workspace => {
   return [];
 }
 
-const setSelectedWorkspace = selectedWorkspace => {
+const setSelectedWorkspace = async selectedWorkspace => {
   const spaces = getYarnWorkspaces();
     if(spaces === null || Object.keys(spaces).length === 0) {
       throw new Error(`Cannot find yarn workspaces!`);
@@ -69,7 +63,7 @@ const setSelectedWorkspace = selectedWorkspace => {
       throw new Error(`Cannot find selected workspace ${selectedWorkspace}!`);
     }
     const cmds = getYarnWorkspaceCommands(selectedWorkspace);
-    cache.save([
+    await cache.save([
       {
         key : "workspace",
         value: selectedWorkspace
@@ -82,8 +76,8 @@ const setSelectedWorkspace = selectedWorkspace => {
     return cmds;
 };
 
-const isValidWorkspaceCommand = cmd => {
-  const cmds = cache.get("workspace.commands") || [];
+const isValidWorkspaceCommand = async cmd => {
+  const cmds = await cache.get("workspace.commands") || [];
   return cmds.indexOf(cmd) > -1;
 };
 
