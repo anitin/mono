@@ -26,7 +26,7 @@ const getRootPackageDependencies = ()=>{
 }
 const isYarnInstalled = () => {
   try {
-    const version = execSync(`yarn --version`).toString().trim();
+    const version = execSync(`yarn --version`, {stdio : 'pipe' }).toString().trim();
     //version > 1
     return true;
   } catch(e){
@@ -49,8 +49,9 @@ const getYarnWorkspaces = () => {
   }
 
   try {
-    const output = execSync(`yarn workspaces info --json`).toString().trim();
-    inMemCachedWorkspaces = JSON.parse(output.substring(output.indexOf("\n")+1, output.lastIndexOf("\n")));
+    const output = execSync(`yarn workspaces info --json`, {stdio : 'pipe' }).toString().trim();
+    const parsed = getObject(output);
+    inMemCachedWorkspaces = parsed ? parsed : JSON.parse(output.substring(output.indexOf("\n")+1, output.lastIndexOf("\n")));
     return Object.keys(inMemCachedWorkspaces);
   } catch(e){
     console.error(`Cannot find yarn workspaces`, e);
@@ -62,7 +63,7 @@ const getYarnWorkspaceCommands = workspace => {
   const workspaces = getYarnWorkspaces();
   if(Array.isArray(workspaces) && workspaces.indexOf(workspace) > -1) {
     try {
-      const result = execSync(`yarn workspace ${workspace} run --json &2>null`).toString().trim();
+      const result = execSync(`yarn workspace ${workspace} run --json`, {stdio : 'pipe' }).toString().trim();
       const output = result.split('\n');
       for(let i=0; i<output.length; i++) {
         const obj = getObject(output[i]);
@@ -115,7 +116,6 @@ const getDependencies = name => {
   return null;
 }
 const getDependencyTree = () => {
-  // console.log(getRootPackageDependencies());
   const spaces = getYarnWorkspaces();
   const roots = spaces.filter( space => !Array.isArray(inMemCachedWorkspaces[space].workspaceDependencies)|| inMemCachedWorkspaces[space].workspaceDependencies.length === 0);
   if(roots.length >0) {
