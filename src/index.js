@@ -19,7 +19,7 @@ const selectWorkspace = async () => {
   });
   const cmds = await yarnInfo.setSelectedWorkspace(workspace);
   if( Array.isArray(cmds) && cmds.length > 0 ){
-    console.log(`Available Commands in ${workspace}:\n• ${cmds.join('\n• ')}`);
+    console.log(`Project Commands in ${workspace}:\n• ${cmds.join('\n• ')}`);
   }
   return workspace;
 }
@@ -30,6 +30,7 @@ process.on('SIGTERM', cleanExit); // catch kill
 
 program
   .option('use', 'Set Workspace')
+  .option('info', 'Show Selected Workspace Information')
   .option('tree', 'Show Workspace Dependency Tree')
   .parse(process.argv);
 
@@ -37,14 +38,33 @@ program
 
   yarnInfo.doChecks();
 
+  if (program.use) {
+    workspace = await selectWorkspace();
+    return;
+  }
   let workspace = await yarnInfo.getSelectedWorkspace();
+
+  if (program.info) {
+    if(workspace){
+      console.log(`Current Workspace: ${workspace}`);
+      const cmds= await yarnInfo.getSelectedWorkspaceCommands();
+      if( Array.isArray(cmds) && cmds.length > 0 ){
+        console.log(`Project Commands in ${workspace}:\n• ${cmds.join('\n• ')}`);
+      }
+    } else {
+      console.log(`You do not have any workspace selected!`);
+    }
+    return;
+  } else if (program.use) {
+    workspace = await selectWorkspace();
+    return;
+  }
+  //for below commands we need workspace. so select it before executing
   if (!workspace) {
     workspace = await selectWorkspace();
   }
 
-  if (program.use) {
-    workspace = await selectWorkspace();
-  } else if (program.tree) {
+  if (program.tree) {
     console.log('Workspace Dependency Tree:')
     yarnInfo.showInfo();
   }

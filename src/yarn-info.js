@@ -136,6 +136,7 @@ module.exports = {
   },
   getWorkspaces: getYarnWorkspaces,
   getSelectedWorkspace: () => cache.get("workspace"),
+  getSelectedWorkspaceCommands: () =>  cache.get("workspace.commands"),
   setSelectedWorkspace,
   isValidWorkspaceCommand,
   showInfo: getDependencyTree
