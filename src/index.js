@@ -39,7 +39,7 @@ program
   yarnInfo.doChecks();
 
   if (program.use) {
-    workspace = await selectWorkspace();
+    await selectWorkspace();
     return;
   }
   let workspace = await yarnInfo.getSelectedWorkspace();
