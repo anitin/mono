@@ -51,7 +51,13 @@ const getYarnWorkspaces = () => {
   try {
     const output = execSync(`yarn workspaces info --json`, {stdio : 'pipe' }).toString().trim();
     const parsed = getObject(output);
-    inMemCachedWorkspaces = parsed ? parsed : JSON.parse(output.substring(output.indexOf("\n")+1, output.lastIndexOf("\n")));
+    if(typeof parsed === 'object' && parsed.data) {
+      inMemCachedWorkspaces = JSON.parse(parsed.data); //older versions
+    } else if (typeof parsed == 'string') {
+      inMemCachedWorkspaces = JSON.parse(output.substring(output.indexOf("\n")+1, output.lastIndexOf("\n")));
+    } else {
+      throw new Error('Error getting workspaces from :\n', output)
+    }
     return Object.keys(inMemCachedWorkspaces);
   } catch(e){
     console.error(`Cannot find yarn workspaces`, e);
