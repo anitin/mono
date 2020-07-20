@@ -1,16 +1,34 @@
 #!/usr/bin/env node
-
 const inquirer = require('inquirer');
 const program = require('commander');
+const updateDotenv = require('update-dotenv')
 const { spawn } = require("child_process");
 const yarnInfo = require('./yarn-info');
 
-const selectWorkspace = async () => {
-  const spaces = yarnInfo.getWorkspaces();
-  const choices = spaces.map(name => ({
-    name: name,
-    value: name
-  }));
+const selectWorkspace = async (withCmd, setenv) => {
+  const spaces = await yarnInfo.getWorkspaces();
+  const spaceNames = Object.keys(spaces);
+  let choices = [];
+  if(typeof withCmd === 'string' && withCmd !== "") {
+    choices = await Promise.all( spaceNames.map( async space => {
+      const cmds = await yarnInfo.getWorkspaceCommands(space);
+      if (cmds.indexOf(withCmd) > -1) {
+        return {
+          name: space,
+          value: space
+        };
+      }
+      else {
+        return null;
+      }
+    }));
+    choices = choices.filter(Boolean);
+  } else {
+   choices = spaceNames.map(name => ({
+      name: name,
+      value: name
+    }));
+  }
   const { workspace } = await inquirer.prompt({
     type: 'list',
     name: 'workspace',
@@ -18,8 +36,24 @@ const selectWorkspace = async () => {
     choices
   });
   const cmds = await yarnInfo.setSelectedWorkspace(workspace);
-  if( Array.isArray(cmds) && cmds.length > 0 ){
+  if (Array.isArray(cmds) && cmds.length > 0) {
     console.log(`Project Commands in ${workspace}:\n• ${cmds.join('\n• ')}`);
+  }
+  if(setenv) {
+    const location = spaces[workspace] ? spaces[workspace].location : '';
+    const packageDir = location.split('/').length > 1 ? location.split('/')[1] : '';
+    const selectWorkspaceInfo = {
+      WORKSPACE: workspace,
+      WORKSPACE_LOCATION: location,
+      WORKSPACE_PACKAGE_DIR: packageDir,
+      WORKSPACE_DEPENDENCIES: spaces[workspace] && Array.isArray(spaces[workspace].workspaceDependencies)  ? spaces[workspace].workspaceDependencies.join(', ') : ''
+    };
+    try{
+      await updateDotenv(selectWorkspaceInfo);
+      console.log(`.env updated successfully`);
+    }catch(e){
+      console.log(`Error setting ".env" file. Please create ".env" file manually with \n ${selectWorkspaceInfo}`);
+    }
   }
   return workspace;
 }
@@ -28,52 +62,59 @@ const cleanExit = function() { process.exit() };
 process.on('SIGINT', cleanExit); // catch ctrl-c
 process.on('SIGTERM', cleanExit); // catch kill
 
-program
-  .option('use', 'Set Workspace')
-  .option('info', 'Show Selected Workspace Information')
-  .option('tree', 'Show Workspace Dependency Tree')
-  .parse(process.argv);
 
 (async function Main() {
 
-  yarnInfo.doChecks();
+  await yarnInfo.doChecks();
 
-  if (program.use) {
-    await selectWorkspace();
-    return;
-  }
-  let workspace = await yarnInfo.getSelectedWorkspace();
+  await program
+    .command('use')
+    .description('Set Workspace')
+    .option("-e, --setenv", "Set env file", false)
+    .option("-w, --with <command name>", "Only select workspace with given command name",'')
+    .action(async (options)=>{
+      console.log(`Finding workspaces ...`);
+      await selectWorkspace(options.with, !!options.setenv);
+    });
 
-  if (program.info) {
-    if(workspace){
-      console.log(`Current Workspace: ${workspace}`);
-      const cmds= await yarnInfo.getSelectedWorkspaceCommands();
-      if( Array.isArray(cmds) && cmds.length > 0 ){
-        console.log(`Project Commands in ${workspace}:\n• ${cmds.join('\n• ')}`);
+  await program
+    .command('info')
+    .description('Show Selected Workspace Information')
+    .action(async ()=> {
+      let workspace = await yarnInfo.getSelectedWorkspace();
+      if(workspace){
+        console.log(`Current Workspace: ${workspace}`);
+        const cmds= await yarnInfo.getSelectedWorkspaceCommands();
+        if( Array.isArray(cmds) && cmds.length > 0 ){
+          console.log(`Project Commands in ${workspace}:\n• ${cmds.join('\n• ')}`);
+        }
+      } else {
+        console.log(`You do not have any workspace selected!`);
       }
-    } else {
-      console.log(`You do not have any workspace selected!`);
-    }
-    return;
-  } else if (program.use) {
-    workspace = await selectWorkspace();
-    return;
-  }
-  //for below commands we need workspace. so select it before executing
-  if (!workspace) {
-    workspace = await selectWorkspace();
-  }
+    });
 
-  if (program.tree) {
-    console.log('Workspace Dependency Tree:')
-    yarnInfo.showInfo();
-  }
-  else if(program.args && program.args.length >0 ){
-    const cmd = program.args[0];
-    //exec
-    spawn('yarn',['workspace', workspace, ...program.args], { stdio: 'inherit', env: process.env });
-    
-  } else {
-    console.log('Error Missing command name.')
-  }
+  await program
+    .command('tree')
+    .description('Show Workspace Dependency Tree')
+    .action(async ()=>{
+      console.log('Workspace Dependency Tree:')
+      yarnInfo.showInfo();
+  });
+
+  program.arguments('<cmd> [env]').action(async ()=>{
+    if(program.args && program.args.length >0 ){
+      let workspace = await yarnInfo.getSelectedWorkspace();
+      if (!workspace) {
+        workspace = await selectWorkspace();
+      }
+      const cmd = program.args[0];
+      //exec
+      spawn('yarn',['workspace', workspace, ...program.args], { stdio: 'inherit', env: process.env });
+
+    } else {
+      console.log('Error Missing command name.', program.args)
+    }
+  })
+  program.parse(process.argv);
+  
 })();
