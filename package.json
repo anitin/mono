@@ -5,6 +5,9 @@
   "bin": {
     "yarn-ws": "src/index.js"
   },
+  "scripts": {
+    "prettier": " yarn prettier --write ."
+  },
   "repository": "https://github.com/anitin/mono.git",
   "author": "ankit.nitin@gmail.com",
   "license": "MIT",
@@ -19,5 +22,8 @@
   },
   "resolutions": {
     "lodash": "^4.17.19"
+  },
+  "devDependencies": {
+    "prettier": "2.0.5"
   }
 }
