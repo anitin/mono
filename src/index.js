@@ -5,11 +5,18 @@ const updateDotenv = require("update-dotenv");
 const { spawn } = require("child_process");
 const yarnInfo = require("./yarn-info");
 
-const selectWorkspace = async (withCmd, setenv) => {
+const selectWorkspace = async (app, withCmd, setenv) => {
   const spaces = await yarnInfo.getWorkspaces();
-  const spaceNames = Object.keys(spaces);
+  const spaceNames = Object.keys(spaces).filter(name => {
+    if (typeof app === "string" && app !== "" ) {
+      return name.includes(app)
+    }
+
+    return true;
+  });
+
   let choices = [];
-  if (typeof withCmd === "string" && withCmd !== "") {
+  if (spaceNames.length > 1 && typeof withCmd === "string" && withCmd !== "") {
     choices = await Promise.all(
       spaceNames.map(async (space) => {
         const cmds = await yarnInfo.getWorkspaceCommands(space);
@@ -30,12 +37,22 @@ const selectWorkspace = async (withCmd, setenv) => {
       value: name,
     }));
   }
-  const { workspace } = await inquirer.prompt({
-    type: "list",
-    name: "workspace",
-    message: "Select the workspace",
-    choices,
-  });
+
+  let workspace = null;
+
+  if (choices.length != 1) {
+    const result = await inquirer.prompt({
+      type: "list",
+      name: "workspace",
+      message: "Select the workspace",
+      choices,
+    });
+    workspace = result.workspace;
+  } else {
+    workspace = choices[0].value;
+    console.log(`auto-selecting workspace: ${workspace}`);
+  }
+
   const cmds = await yarnInfo.setSelectedWorkspace(workspace);
   if (Array.isArray(cmds) && cmds.length > 0) {
     console.log(`Project Commands in ${workspace}:\n• ${cmds.join("\n• ")}`);
@@ -78,6 +95,7 @@ process.on("SIGTERM", cleanExit); // catch kill
   await program
     .command("use")
     .description("Set Workspace")
+    .option("-a, --app <app name>", "Select an app", "")
     .option("-e, --setenv", "Set env file", false)
     .option(
       "-w, --with <command name>",
@@ -86,7 +104,7 @@ process.on("SIGTERM", cleanExit); // catch kill
     )
     .action(async (options) => {
       console.log(`Finding workspaces ...`);
-      await selectWorkspace(options.with, !!options.setenv);
+      await selectWorkspace(options.app, options.with, !!options.setenv);
     });
 
   await program
