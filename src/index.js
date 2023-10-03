@@ -40,7 +40,7 @@ const selectWorkspace = async (app, withCmd, setenv) => {
 
   let workspace = null;
 
-  if (choices.length != 1) {
+  if (choices.length >= 2) {
     const result = await inquirer.prompt({
       type: "list",
       name: "workspace",
@@ -48,9 +48,14 @@ const selectWorkspace = async (app, withCmd, setenv) => {
       choices,
     });
     workspace = result.workspace;
-  } else {
+  } else if (choices.length === 1) {
     workspace = choices[0].value;
     console.log(`auto-selecting workspace: ${workspace}`);
+  }
+
+  if (!workspace) {
+    console.log('No matching workspaces found');
+    return cleanExit();
   }
 
   const cmds = await yarnInfo.setSelectedWorkspace(workspace);
